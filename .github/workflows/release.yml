@@ -19,50 +19,42 @@ jobs:
     - name: Make create_deb.sh executable
       run: chmod +x create_deb.sh
 
-    - name: Set up package_version
+    - name: Set up package_version from Git tag
       id: package_version
-      run: echo "::set-output name=package_version::$(cat create_deb.sh | grep -oP 'package_version="(\d+\.\d+\.\d+)"' | cut -d'"' -f 2)"
+      run: echo "::set-output name=package_version::${{ github.ref }}"
 
     - name: Set environment variables from GitHub Action environment
       run: |
-        export PACKAGE_NAME="aws-sam-cli"
-        export PACKAGE_VERSION="${{ steps.package_version.outputs.package_version }}"
-        export PACKAGE_DESCRIPTION="AWS SAM CLI"
-        export MAINTAINER="${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>"
+        echo "PACKAGE_NAME=aws-sam-cli" >> $GITHUB_ENV
+        echo "PACKAGE_VERSION=${{ steps.package_version.outputs.package_version }}" >> $GITHUB_ENV
+        echo "PACKAGE_DESCRIPTION=AWS SAM CLI" >> $GITHUB_ENV
+        echo "MAINTAINER=${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>" >> $GITHUB_ENV
 
-    - name: Check if Release Already Exists
+    - name: Check for Existing Release
       id: check_release
       run: |
-        package_name="aws-sam-cli"
-        package_version="${{ steps.package_version.outputs.package_version }}"
-        release_check=$(gh release view "$package_version" 2>&1)
+        release_check=$(gh release view "$PACKAGE_VERSION" 2>&1)
         echo "::set-output name=release_exists::true"
-      continue-on-error: true
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Create Release
-      id: create_release
-      run: |
-        package_name="aws-sam-cli"
-        package_version="${{ steps.package_version.outputs.package_version }}"
-        
-        # Check if the release already exists
-        if [[ "${{ steps.check_release.outputs.release_exists }}" != "true" ]]; then
-          echo "Creating release for $package_name v$package_version"
-          gh release create "$package_version" "create_deb.sh" --title "Release $package_name v$package_version"
+        if [[ $release_check == *"does not exist"* ]]; then
+          echo "Release $PACKAGE_VERSION does not exist."
+          echo "::set-output name=release_exists::false"
         else
-          echo "Release $package_name v$package_version already exists. Skipping release creation."
+          echo "Release $PACKAGE_VERSION already exists. Skipping release creation."
         fi
       env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
-    - name: Upload Release Asset
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Create Release
+      if: success() && steps.check_release.outputs.release_exists == 'false'
       run: |
-        package_name="aws-sam-cli"
-        package_version="${{ steps.package_version.outputs.package_version }}"
-        
-        # Upload the .deb package as a release asset
-        gh release upload "$package_version" "aws-sam-cli-$package_version.deb" --clobber
+        echo "Creating release for $PACKAGE_NAME v$PACKAGE_VERSION"
+        gh release create "$PACKAGE_VERSION" "create_deb.sh" --title "Release $PACKAGE_NAME v$PACKAGE_VERSION"
       env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Upload Debian Package
+      uses: softprops/action-gh-release@v1
+      with:
+        files: aws-sam-cli-*.deb
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
