@@ -21,16 +21,17 @@ jobs:
 
     - name: Set up package_version from Git tag
       id: package_version
-      run: echo "::set-output name=package_version::${{ github.ref }}"
-
+      run: echo "::set-output name=package_version::${{ github.ref }}" | sed 's/refs\/tags\///'
+    
     - name: Run create_deb.sh script with environment variables
       run: |
         PACKAGE_NAME="aws-sam-cli"
         PACKAGE_VERSION="${{ steps.package_version.outputs.package_version }}"
         PACKAGE_DESCRIPTION="AWS SAM CLI"
         MAINTAINER="${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>"
+        SAM_CLI_ZIP_URL="https://github.com/aws/aws-sam-cli/releases/download/v${{ steps.package_version.outputs.package_version }}/aws-sam-cli-linux-x86_64.zip"
         
-        export PACKAGE_NAME PACKAGE_VERSION PACKAGE_DESCRIPTION MAINTAINER
+        export PACKAGE_NAME PACKAGE_VERSION PACKAGE_DESCRIPTION MAINTAINER SAM_CLI_ZIP_URL
 
         ./create_deb.sh
       env:
