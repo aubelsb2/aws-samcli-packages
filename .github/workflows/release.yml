@@ -30,8 +30,16 @@ jobs:
         export PACKAGE_DESCRIPTION="AWS SAM CLI"
         export MAINTAINER="${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>"
 
-    - name: Run the create_deb.sh script
-      run: ./create_deb.sh
+    - name: Check if Release Already Exists
+      id: check_release
+      run: |
+        package_name="aws-sam-cli"
+        package_version="${{ steps.package_version.outputs.package_version }}"
+        release_check=$(gh release view "$package_version" 2>&1)
+        echo "::set-output name=release_exists::true"
+      continue-on-error: true
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Create Release
       id: create_release
@@ -39,12 +47,13 @@ jobs:
         package_name="aws-sam-cli"
         package_version="${{ steps.package_version.outputs.package_version }}"
         
-        echo "Creating release for $package_name v$package_version"
-        
-        # Create a release
-        release_tag="${{ github.ref }}"
-        release_id=$(gh release create "$release_tag" "create_deb.sh" --title "Release $package_name v$package_version")
-        echo "::set-output name=release_id::$release_id"
+        # Check if the release already exists
+        if [[ "${{ steps.check_release.outputs.release_exists }}" != "true" ]]; then
+          echo "Creating release for $package_name v$package_version"
+          gh release create "$package_version" "create_deb.sh" --title "Release $package_name v$package_version"
+        else
+          echo "Release $package_name v$package_version already exists. Skipping release creation."
+        fi
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
