@@ -21,7 +21,7 @@ jobs:
 
     - name: Set up package_version from Git tag
       id: package_version
-      run: echo "::set-output name=package_version::${{ github.ref }}" | sed 's/refs\/tags\///'
+      run: echo "::set-output name=package_version::${{ github.ref }}" | sed 's/refs\/tags\/v//'
     
     - name: Run create_deb.sh script with environment variables
       run: |
