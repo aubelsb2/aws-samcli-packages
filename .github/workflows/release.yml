@@ -33,19 +33,18 @@ jobs:
     - name: Check for Existing Release
       id: check_release
       run: |
-        release_check=$(gh release view "$PACKAGE_VERSION" 2>&1)
-        echo "::set-output name=release_exists::true"
+        release_check=$(gh release view "$PACKAGE_VERSION" 2>&1 || true)
         if [[ $release_check == *"does not exist"* ]]; then
           echo "Release $PACKAGE_VERSION does not exist."
-          echo "::set-output name=release_exists::false"
         else
           echo "Release $PACKAGE_VERSION already exists. Skipping release creation."
         fi
+      continue-on-error: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Create Release
-      if: success() && steps.check_release.outputs.release_exists == 'false'
+      if: success()
       run: |
         echo "Creating release for $PACKAGE_NAME v$PACKAGE_VERSION"
         gh release create "$PACKAGE_VERSION" "create_deb.sh" --title "Release $PACKAGE_NAME v$PACKAGE_VERSION"
