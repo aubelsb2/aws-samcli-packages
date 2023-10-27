@@ -42,10 +42,11 @@ jobs:
         echo "Creating release for $package_name v$package_version"
         
         # Create a release
-        release_id=$(gh release create "$package_version" "create_deb.sh" --title "Release $package_name v$package_version")
+        release_tag="${{ github.ref }}"
+        release_id=$(gh release create "$release_tag" "create_deb.sh" --title "Release $package_name v$package_version")
         echo "::set-output name=release_id::$release_id"
       env:
-        GH_TOKEN: ${{ github.token }}
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
     - name: Upload Release Asset
       run: |
@@ -55,5 +56,4 @@ jobs:
         # Upload the .deb package as a release asset
         gh release upload "$package_version" "aws-sam-cli-$package_version.deb" --clobber
       env:
-        GH_TOKEN: ${{ github.token }}
-  
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
